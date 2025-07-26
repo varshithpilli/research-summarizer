@@ -63,7 +63,7 @@ document
     summaryText.textContent = "";
 
     try {
-      const response = await fetch("http://localhost:8000/summarize", {
+      const response = await fetch("https://re-summ.onrender.com/summarize", {
         method: "POST",
         body: formData,
       });
