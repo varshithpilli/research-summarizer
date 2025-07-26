@@ -1,0 +1,199 @@
+:root {
+  --accent-1: #6f1d1d;
+  --accent-2: #c62828;
+  --accent-3: #8a1313;
+  --accent-4: #d32f2f;
+  --accent-5: #5a1010;
+  --card-bg: #1e1e1e;
+  --bg-main: #121212;
+  --bg-card: #141414;
+  --bg-card-dark: #000000;
+  --text-main: #e5e5e7;
+  --text-muted: #c0c0c0;
+  --border: #232326;
+  --shadow: 0 4px 32px rgba(0,0,0,0.18);
+}
+
+body {
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+  background: var(--bg-main);
+  margin: 0;
+  padding: 0;
+  color: var(--text-main);
+  min-height: 100vh;
+}
+
+.main-title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 2.5rem 1.5rem 1.5rem 1.5rem;
+  padding-left: 1rem;
+}
+.main-title h1 {
+  font-weight: 600;
+  font-size: 2.4rem;
+  margin: 0 0 0.3rem 0;
+  color: var(--text-main);
+}
+.subtitle {
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  font-weight: 100;
+  margin: 0;
+}
+
+.card-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 1000px;
+  margin: 0 auto;
+  justify-content: flex-start;
+  align-items: stretch;
+  background: var(--card-bg);
+  padding: 1.5rem 0 1.5rem 0;
+  border-radius: 10px;
+}
+
+.card {
+  background: var(--bg-card);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  padding: 2rem 1.5rem 1.5rem 1.5rem;
+  margin-left: 1.5rem;
+  margin-right: 1.5rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100vw;
+  display: flex;
+  flex-direction: column;
+  min-height: 120px;
+}
+.card-header {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-main);
+  background: var(--bg-card-dark);
+  border-radius: 12px 12px 0 0;
+  padding: 0.7rem 1rem;
+  margin: -2rem -1.5rem 1.2rem -1.5rem;
+}
+
+/* Upload area */
+.drop-area {
+  width: 100%;
+  min-height: 120px;
+  background: var(--bg-main);
+  border: 2.5px dashed var(--accent-3);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 1.08rem;
+  transition: border-color 0.2s, background 0.2s;
+  cursor: pointer;
+  margin-bottom: 1.2rem;
+  position: relative;
+  text-align: center;
+  outline: none;
+}
+.drop-area.dragover {
+  border-color: var(--accent-2);
+  background: #1e1e22;
+  color: var(--accent-2);
+}
+input[type="file"] {
+  display: none;
+}
+.browse-link {
+  color: var(--accent-2);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.accent-btn {
+  background: var(--accent-1);
+  color: #fff;
+  border: 1px solid rgb(134, 4, 4);
+  border-radius: 6px;
+  padding: 0.6rem 1.5rem;
+  cursor: pointer;
+  font-size: 1.08rem;
+  box-shadow: none;
+  transition: background 0.18s, transform 0.12s;
+  outline: none;
+  letter-spacing: 0.01em;
+  margin-top: 0.5rem;
+  align-self: flex-end;
+}
+.accent-btn:hover, .accent-btn:focus {
+  transform: translateY(-1px);
+}
+
+#summarySection {
+  background: var(--bg-main);
+  border-radius: 8px;
+  padding: 1.1rem 1rem;
+  border: 1px solid var(--border);
+  margin-top: 0.5rem;
+  opacity: 0;
+  animation: fadeInSummary 0.4s 0.05s cubic-bezier(.4,0,.2,1) forwards;
+  min-height: 120px;
+  max-height: none;
+  overflow-y: auto;
+}
+
+@keyframes fadeInSummary {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+#summaryText {
+  color: var(--text-main);
+  font-size: 1.04rem;
+  line-height: 1.6;
+  margin: 0.5rem 0 0 0;
+  word-break: break-word;
+  transition: color 0.2s;
+}
+
+/* Hide scrollbar unless needed, and style it minimally */
+#summarySection {
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-5) var(--bg-main);
+}
+#summarySection::-webkit-scrollbar {
+  width: 8px;
+  background: transparent;
+}
+#summarySection:hover::-webkit-scrollbar-thumb {
+  background: var(--accent-5);
+  border-radius: 8px;
+}
+#summarySection::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+
+@media (max-width: 900px) {
+  .main-title {
+    padding-left: 0.5rem;
+  }
+}
+@media (max-width: 600px) {
+  .card {
+    min-width: 0;
+    max-width: 100vw;
+    padding: 1.2rem 0.5rem 1rem 0.5rem;
+  }
+  .main-title h1 {
+    font-size: 1.3rem;
+  }
+  .card-header {
+    font-size: 1rem;
+    padding: 0.5rem 0.7rem;
+    margin: -1.2rem -0.5rem 1rem -0.5rem;
+  }
+} 
