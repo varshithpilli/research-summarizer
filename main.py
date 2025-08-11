@@ -14,11 +14,16 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://bl03.varzone.in"],
+    # allow_origins=["https://bl03.varzone.in"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/")
+def landing_page():
+    return {"answer": "nothing to see here"}
 
 @app.get("/health")
 def health_check():
