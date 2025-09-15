@@ -47,50 +47,106 @@ function updateDropText() {
   }
 }
 
-document
-  .getElementById("uploadForm")
-  .addEventListener("submit", async function (e) {
-    e.preventDefault();
-    const file = fileInput.files[0];
-    if (!file) return;
+// --- New action handlers ---
+const btnSummarize = document.getElementById("btnSummarize");
+const btnGetDoi = document.getElementById("btnGetDoi");
+const btnPlagiarism = document.getElementById("btnPlagiarism");
 
-    const formData = new FormData();
-    formData.append("file", file);
+const resultCard = document.getElementById("resultCard");
+const resultHeader = document.getElementById("resultHeader");
+const summarySection = document.getElementById("summarySection");
+const summaryText = document.getElementById("summaryText");
 
-    const summarySection = document.getElementById("summarySection");
-    const summaryText = document.getElementById("summaryText");
-    summarySection.style.display = "none";
-    summaryText.textContent = "";
+const API_BASE = "http://13.61.56.46:8000";
+const ACTION_CONFIG = {
+  summarize: {
+    header: "Summary",
+    endpoint: "/summarize",
+    streaming: true,
+    asMarkdown: true,
+  },
+  doi: {
+    header: "Detected DOI",
+    endpoint: "/doi",
+    streaming: false,
+    asMarkdown: false,
+  },
+  plagiarism: {
+    header: "Plagiarism Check",
+    endpoint: "/plagiarism",
+    streaming: true,
+    asMarkdown: true,
+  },
+};
 
-    try {
-      const response = await fetch("http://127.0.0.1:8000/summarize", {
-        method: "POST",
-        body: formData,
-      });
+btnSummarize.addEventListener("click", () => performAction("summarize"));
+btnGetDoi.addEventListener("click", () => performAction("doi"));
+btnPlagiarism.addEventListener("click", () => performAction("plagiarism"));
 
-      if (!response.ok) throw new Error("Failed to get summary");
-      summarySection.style.display = "block";
-      summarySection.style.overflowY = "auto";
+function resetResult() {
+  resultCard.style.display = "none";
+  resultHeader.textContent = "Result";
+  summarySection.style.display = "none";
+  summaryText.textContent = "";
+  summaryText.innerHTML = "";
+}
 
-      const reader = response.body.getReader();
+async function performAction(actionKey) {
+  const file = fileInput.files && fileInput.files[0];
+  if (!file) return;
+
+  const cfg = ACTION_CONFIG[actionKey];
+  if (!cfg) return;
+
+  resetResult();
+  resultHeader.textContent = cfg.header;
+  resultCard.style.display = "block";
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  try {
+    const res = await fetch(`${API_BASE}${cfg.endpoint}`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!res.ok) throw new Error(`Request failed (${res.status})`);
+
+    summarySection.style.display = "block";
+    summarySection.style.overflowY = "auto";
+
+    if (cfg.streaming && res.body && res.body.getReader) {
+      const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let done = false;
       let fullText = "";
-
       while (!done) {
         const { value, done: doneReading } = await reader.read();
         done = doneReading;
         if (value) {
           const chunk = decoder.decode(value, { stream: true });
           fullText += chunk;
-          const newHTML = DOMPurify.sanitize(marked.parse(fullText));
-          summaryText.innerHTML = newHTML;
-          summaryText.scrollTop = summaryText.scrollHeight;
+          renderOutput(fullText, cfg.asMarkdown);
         }
       }
-    } catch (err) {
-      summaryText.textContent = "Error: " + err.message;
-      summarySection.style.display = "block";
-      summarySection.style.overflowY = "hidden";
+    } else {
+      const text = await res.text();
+      renderOutput(text, cfg.asMarkdown);
     }
-  });
+  } catch (err) {
+    summaryText.textContent = "Error: " + err.message;
+    summarySection.style.display = "block";
+    summarySection.style.overflowY = "hidden";
+  }
+}
+
+function renderOutput(text, asMarkdown) {
+  if (asMarkdown) {
+    const newHTML = DOMPurify.sanitize(marked.parse(text));
+    summaryText.innerHTML = newHTML;
+  } else {
+    summaryText.textContent = text;
+  }
+  summaryText.scrollTop = summaryText.scrollHeight;
+}

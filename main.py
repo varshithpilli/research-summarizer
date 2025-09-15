@@ -7,23 +7,25 @@ import tempfile
 import os
 from dotenv import load_dotenv
 from google import genai
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 load_dotenv()
 
 app = FastAPI()
-
 app.add_middleware(
     CORSMiddleware,
-    # allow_origins=["https://bl03.varzone.in"],
-    allow_origins=["*"],
+    allow_origins=["https://bl04.varzone.in"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
+
 @app.get("/")
-def landing_page():
-    return {"answer": "nothing to see here"}
+async def root():
+    return FileResponse("frontend/index.html")
 
 @app.get("/health")
 def health_check():

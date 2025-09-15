@@ -133,6 +133,14 @@ input[type="file"] {
   transform: translateY(-1px);
 }
 
+/* New: button row layout */
+.btn-row {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
 #summarySection {
   background: var(--bg-main);
   border-radius: 8px;
