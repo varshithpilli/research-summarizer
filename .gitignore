@@ -1,5 +1,6 @@
-venv
+venv/
 app/__pycache__/
 *.pyc
 .env
 frontend/node_modules/*
+DeepSeek-R1-7B/

@@ -1,0 +1,93 @@
+
+from fastapi import FastAPI, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+import asyncio
+import io
+import tempfile
+import os
+from dotenv import load_dotenv
+from google import genai
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import boto3
+
+load_dotenv()
+
+app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://bl04.varzone.in"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
+
+
+s3_client = boto3.client("s3", region_name="us-east-1")
+
+BUCKET_NAME = "file-storage-for-cloud"
+
+@app.get("/")
+async def root():
+    return FileResponse("frontend/index.html")
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
+
+# @app.post("/summarize")
+# async def summarize(file: UploadFile = File(...)):
+#     suffix = os.path.splitext(file.filename)[1]
+#     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+#         tmp.write(await file.read())
+#         tmp_path = tmp.name
+    
+#     client = genai.Client()
+#     uploaded_file = client.files.upload(file=tmp_path)
+    
+#     def sync_generator():
+#         for chunk in client.models.generate_content_stream(
+#             model="gemini-2.0-flash",
+#             contents=[
+#                 uploaded_file,
+#                 "\n\n",
+#                 "Carefully analyze the content of the attached research paper, identifying its key hypotheses, methodologies, results, and conclusions. Provide a detailed and coherent summary that captures the essence of the study, highlights its significance in the field, and explains any novel contributions or findings in a clear and accessible manner.",
+#             ],
+#         ):
+#             yield chunk.text
+
+#     async def async_generator():
+#         for chunk in sync_generator():
+#             yield chunk
+#             await asyncio.sleep(0)
+
+#     return StreamingResponse(async_generator(), media_type="text/plain")
+
+
+@app.post("/summarize")
+async def summarize(file: UploadFile = File(...)):
+    # Save temporarily to get a file-like object
+    suffix = os.path.splitext(file.filename)[1]
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp.write(await file.read())
+        tmp_path = tmp.name
+
+    # Upload to S3
+    s3_key = file.filename  # optionally add folder/user prefix
+    s3_client.upload_fileobj(
+        Fileobj=open(tmp_path, "rb"),
+        Bucket=BUCKET_NAME,
+        Key=s3_key
+    )
+
+    # Cleanup temp file
+    os.remove(tmp_path)
+
+    return {
+        "message": "File uploaded successfully to S3.",
+        "s3_key": s3_key,
+        "s3_url": f"https://{BUCKET_NAME}.s3.amazonaws.com/{s3_key}"
+    }

@@ -1,60 +1,45 @@
 from fastapi import FastAPI, UploadFile, File
-from fastapi.middleware.cors import CORSMiddleware
+import boto3, tempfile, os
+import uuid
+import requests
 from fastapi.responses import StreamingResponse
-import asyncio
-import io
-import tempfile
-import os
-from dotenv import load_dotenv
-from google import genai
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-
-load_dotenv()
 
 app = FastAPI()
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["https://bl04.varzone.in"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+s3_client = boto3.client("s3")
+BUCKET_NAME = "file-storage-for-cloud"
 
-app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
-
-@app.get("/")
-async def root():
-    return FileResponse("frontend/index.html")
-
-@app.get("/health")
-def health_check():
-    return {"status": "ok"}
+JOB_RESULTS = {}
 
 @app.post("/summarize")
 async def summarize(file: UploadFile = File(...)):
+    job_id = str(uuid.uuid4())
+
     suffix = os.path.splitext(file.filename)[1]
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         tmp.write(await file.read())
         tmp_path = tmp.name
-    
-    client = genai.Client()
-    uploaded_file = client.files.upload(file=tmp_path)
-    
-    def sync_generator():
-        for chunk in client.models.generate_content_stream(
-            model="gemini-2.0-flash",
-            contents=[
-                uploaded_file,
-                "\n\n",
-                "Carefully analyze the content of the attached research paper, identifying its key hypotheses, methodologies, results, and conclusions. Provide a detailed and coherent summary that captures the essence of the study, highlights its significance in the field, and explains any novel contributions or findings in a clear and accessible manner.",
-            ],
-        ):
-            yield chunk.text
 
-    async def async_generator():
-        for chunk in sync_generator():
-            yield chunk
-            await asyncio.sleep(0)
+    s3_key = f"{job_id}/{file.filename}"
+    s3_client.upload_file(tmp_path, BUCKET_NAME, s3_key)
+    os.remove(tmp_path)
 
-    return StreamingResponse(async_generator(), media_type="text/plain")
+    return {"message": "File uploaded. Processing started.", "job_id": job_id}
+
+@app.post("/callback/{job_id}")
+async def lambda_callback(job_id: str, payload: dict):
+    JOB_RESULTS[job_id] = payload
+    return {"status": "received"}
+
+@app.get("/status/{job_id}")
+async def check_status(job_id: str):
+    if job_id not in JOB_RESULTS:
+        return {"status": "processing"}
+
+    result = JOB_RESULTS[job_id]
+    
+    # Placeholder Bedrock call (replace with your actual streaming logic)
+    def stream_summary():
+        yield f"Summary for {result['file_name']}:\n"
+        yield result['text']['abstract'] + "\n"
+
+    return StreamingResponse(stream_summary(), media_type="text/plain")
