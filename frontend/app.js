@@ -1,6 +1,11 @@
 const dropArea = document.getElementById("dropArea");
 const fileInput = document.getElementById("fileInput");
 const dropAreaText = document.getElementById("dropAreaText");
+const uploadSection = document.getElementById("uploadSection");
+const actionsSection = document.getElementById("actionsSection");
+const uploadedFileName = document.getElementById("uploadedFileName");
+let uploadedFileId = null;
+let isUploading = false;
 
 ["dragenter", "dragover"].forEach((eventName) => {
   dropArea.addEventListener(eventName, (e) => {
@@ -41,6 +46,8 @@ fileInput.addEventListener("change", updateDropText);
 function updateDropText() {
   if (fileInput.files && fileInput.files.length > 0) {
     dropAreaText.textContent = fileInput.files[0].name;
+    // Trigger auto-upload when a file is selected
+    uploadSelectedFile();
   } else {
     dropAreaText.innerHTML =
       'Drag & drop your PDF or DOCX here, or <span style="color:var(--accent-2);text-decoration:underline;cursor:pointer;">browse</span>';
@@ -57,7 +64,8 @@ const resultHeader = document.getElementById("resultHeader");
 const summarySection = document.getElementById("summarySection");
 const summaryText = document.getElementById("summaryText");
 
-const API_BASE = "http://13.61.56.46:8000";
+const API_BASE = "http://13.220.174.139:8000";
+// const API_BASE = "http://localhost:8000";
 const ACTION_CONFIG = {
   summarize: {
     header: "Summary",
@@ -82,6 +90,11 @@ const ACTION_CONFIG = {
 btnSummarize.addEventListener("click", () => performAction("summarize"));
 btnGetDoi.addEventListener("click", () => performAction("doi"));
 btnPlagiarism.addEventListener("click", () => performAction("plagiarism"));
+
+// Disable action buttons and ensure only upload section is visible initially
+setActionButtonsEnabled(false);
+if (actionsSection) actionsSection.style.display = "none";
+if (uploadSection) uploadSection.style.display = "block";
 
 function resetResult() {
   resultCard.style.display = "none";
@@ -149,4 +162,58 @@ function renderOutput(text, asMarkdown) {
     summaryText.textContent = text;
   }
   summaryText.scrollTop = summaryText.scrollHeight;
+}
+
+async function uploadSelectedFile() {
+  const file = fileInput.files && fileInput.files[0];
+  if (!file) return;
+
+  isUploading = true;
+  setActionButtonsEnabled(false);
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  try {
+    const res = await fetch(`${API_BASE}/upload`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+    // let data = null;
+    // const contentType = res.headers.get("content-type") || "";
+    // if (contentType.includes("application/json")) {
+    //   data = await res.json();
+    // } else {
+    //   const text = await res.text();
+    //   try { data = JSON.parse(text); } catch (_) { data = { file_id: text }; }
+    // }
+    // uploadedFileId = data && (data.file_id || data.id || data.uploadId || data.upload_id) || null;
+    // if (!uploadedFileId) throw new Error("Upload did not return a file id");
+
+    if (uploadedFileName && file && file.name) uploadedFileName.textContent = file.name;
+    if (uploadSection) uploadSection.style.display = "none";
+    if (actionsSection) actionsSection.style.display = "block";
+    setActionButtonsEnabled(true);
+  } catch (err) {
+    uploadedFileId = null;
+    console.error(err);
+    // Provide minimal inline feedback
+    resultCard.style.display = "block";
+    resultHeader.textContent = "Upload Error";
+    summarySection.style.display = "block";
+    summarySection.style.overflowY = "hidden";
+    summaryText.textContent = "Error: " + err.message;
+    if (uploadSection) uploadSection.style.display = "block";
+    if (actionsSection) actionsSection.style.display = "none";
+  } finally {
+    isUploading = false;
+  }
+}
+
+function setActionButtonsEnabled(enabled) {
+  btnSummarize.disabled = !enabled;
+  btnGetDoi.disabled = !enabled;
+  btnPlagiarism.disabled = !enabled;
 }

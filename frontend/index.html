@@ -15,17 +15,22 @@
   <div class="card-layout">
     <section class="card card-left">
       <header class="card-header">Upload Document</header>
-      <form id="uploadForm">
-        <label for="fileInput" class="drop-area" id="dropArea" tabindex="0">
-          <span id="dropAreaText">Drag & drop your PDF or DOCX here, or click to select</span>
-          <input type="file" id="fileInput" accept=".pdf,.docx" required />
-        </label>
+      <div id="uploadSection">
+        <form id="uploadForm">
+          <label for="fileInput" class="drop-area" id="dropArea" tabindex="0">
+            <span id="dropAreaText">Drag & drop your PDF or DOCX here, or click to select</span>
+            <input type="file" id="fileInput" accept=".pdf,.docx" required />
+          </label>
+        </form>
+      </div>
+      <div id="actionsSection" style="display:none;">
+        <p id="selectedFileLabel">Selected file: <span id="uploadedFileName"></span></p>
         <div class="btn-row">
           <button type="button" id="btnSummarize" class="accent-btn">Summarize</button>
           <button type="button" id="btnGetDoi" class="accent-btn">Get DOI</button>
           <button type="button" id="btnPlagiarism" class="accent-btn">Check Plagiarism</button>
         </div>
-      </form>
+      </div>
     </section>
     <section class="card card-right" id="resultCard" style="display:none;">
       <header class="card-header" id="resultHeader">Result</header>
