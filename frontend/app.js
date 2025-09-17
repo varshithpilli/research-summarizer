@@ -66,30 +66,10 @@ const summaryText = document.getElementById("summaryText");
 
 const API_BASE = "http://13.220.174.139:8000";
 // const API_BASE = "http://localhost:8000";
-const ACTION_CONFIG = {
-  summarize: {
-    header: "Summary",
-    endpoint: "/summarize",
-    streaming: true,
-    asMarkdown: true,
-  },
-  doi: {
-    header: "Detected DOI",
-    endpoint: "/doi",
-    streaming: false,
-    asMarkdown: false,
-  },
-  plagiarism: {
-    header: "Plagiarism Check",
-    endpoint: "/plagiarism",
-    streaming: true,
-    asMarkdown: true,
-  },
-};
 
-btnSummarize.addEventListener("click", () => performAction("summarize"));
-btnGetDoi.addEventListener("click", () => performAction("doi"));
-btnPlagiarism.addEventListener("click", () => performAction("plagiarism"));
+btnSummarize.addEventListener("click", performSummarize);
+btnGetDoi.addEventListener("click", performGetDoi);
+btnPlagiarism.addEventListener("click", performPlagiarism);
 
 // Disable action buttons and ensure only upload section is visible initially
 setActionButtonsEnabled(false);
@@ -104,22 +84,19 @@ function resetResult() {
   summaryText.innerHTML = "";
 }
 
-async function performAction(actionKey) {
+async function performSummarize() {
   const file = fileInput.files && fileInput.files[0];
   if (!file) return;
 
-  const cfg = ACTION_CONFIG[actionKey];
-  if (!cfg) return;
-
   resetResult();
-  resultHeader.textContent = cfg.header;
+  resultHeader.textContent = "Summary";
   resultCard.style.display = "block";
 
   const formData = new FormData();
   formData.append("file", file);
 
   try {
-    const res = await fetch(`${API_BASE}${cfg.endpoint}`, {
+    const res = await fetch(`${API_BASE}/summarize`, {
       method: "POST",
       body: formData,
     });
@@ -129,7 +106,7 @@ async function performAction(actionKey) {
     summarySection.style.display = "block";
     summarySection.style.overflowY = "auto";
 
-    if (cfg.streaming && res.body && res.body.getReader) {
+    if (res.body && res.body.getReader) {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let done = false;
@@ -140,12 +117,146 @@ async function performAction(actionKey) {
         if (value) {
           const chunk = decoder.decode(value, { stream: true });
           fullText += chunk;
-          renderOutput(fullText, cfg.asMarkdown);
+          renderOutput(fullText, true); // asMarkdown = true
         }
       }
     } else {
       const text = await res.text();
-      renderOutput(text, cfg.asMarkdown);
+      renderOutput(text, true);
+    }
+  } catch (err) {
+    summaryText.textContent = "Error: " + err.message;
+    summarySection.style.display = "block";
+    summarySection.style.overflowY = "hidden";
+  }
+}
+
+
+async function performGetDoi() {
+  const file = fileInput.files && fileInput.files[0];
+  if (!file) return;
+
+  resetResult();
+  resultHeader.textContent = "Detected DOI";
+  resultCard.style.display = "block";
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  try {
+    const res = await fetch(`${API_BASE}/doi`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!res.ok) throw new Error(`Request failed (${res.status})`);
+
+    const rawText = await res.text();
+    summarySection.style.display = "block";
+    summarySection.style.overflowY = "hidden";
+
+    // Format as markdown
+    const markdownFormatted = formatDoiResponseToMarkdown(rawText);
+    renderOutput(markdownFormatted, true);
+  } catch (err) {
+    summaryText.textContent = "Error: " + err.message;
+    summarySection.style.display = "block";
+    summarySection.style.overflowY = "hidden";
+  }
+}
+
+
+function formatDoiResponseToMarkdown(text) {
+  const lines = text.trim().split('\n').filter(Boolean);
+  let formatted = "";
+
+  lines.forEach((line) => {
+    if (line.startsWith("doi: ")) {
+      const doi = line.slice(5).trim();
+      formatted += `**DOI:** [${doi}](https://doi.org/${doi})\n\n`;
+    } else if (line.startsWith("http")) {
+      formatted += `[${line}](${line})\n\n`;
+    } else {
+      formatted += `${line}\n\n`;
+    }
+  });
+
+  return formatted;
+}
+
+
+// async function performGetDoi() {
+//   const file = fileInput.files && fileInput.files[0];
+//   if (!file) return;
+
+//   resetResult();
+//   resultHeader.textContent = "Detected DOI";
+//   resultCard.style.display = "block";
+
+//   const formData = new FormData();
+//   formData.append("file", file);
+
+//   try {
+//     const res = await fetch(`${API_BASE}/doi`, {
+//       method: "POST",
+//       body: formData,
+//     });
+
+//     if (!res.ok) throw new Error(`Request failed (${res.status})`);
+
+//     const text = await res.text();
+
+//     summarySection.style.display = "block";
+//     summarySection.style.overflowY = "hidden";
+
+//     renderOutput(text, true);
+//   } catch (err) {
+//     summaryText.textContent = "Error: " + err.message;
+//     summarySection.style.display = "block";
+//     summarySection.style.overflowY = "hidden";
+//   }
+// }
+
+
+async function performPlagiarism() {
+  const file = fileInput.files && fileInput.files[0];
+  if (!file) return;
+
+  resetResult();
+  resultHeader.textContent = "Plagiarism Check";
+  resultCard.style.display = "block";
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  try {
+    const res = await fetch(`${API_BASE}/plagiarism`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!res.ok) throw new Error(`Request failed (${res.status})`);
+
+    summarySection.style.display = "block";
+    summarySection.style.overflowY = "auto";
+
+    if (res.body && res.body.getReader) {
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let done = false;
+      let fullText = "";
+      while (!done) {
+        const { value, done: doneReading } = await reader.read();
+        done = doneReading;
+        if (value) {
+          const chunk = decoder.decode(value, { stream: true });
+          fullText += chunk;
+          renderOutput(fullText, true); // asMarkdown = true
+        }
+      }
+    } else {
+      const text = await res.text();
+      renderOutput(text, true);
     }
   } catch (err) {
     summaryText.textContent = "Error: " + err.message;
@@ -181,16 +292,6 @@ async function uploadSelectedFile() {
     });
 
     if (!res.ok) throw new Error(`Upload failed (${res.status})`);
-    // let data = null;
-    // const contentType = res.headers.get("content-type") || "";
-    // if (contentType.includes("application/json")) {
-    //   data = await res.json();
-    // } else {
-    //   const text = await res.text();
-    //   try { data = JSON.parse(text); } catch (_) { data = { file_id: text }; }
-    // }
-    // uploadedFileId = data && (data.file_id || data.id || data.uploadId || data.upload_id) || null;
-    // if (!uploadedFileId) throw new Error("Upload did not return a file id");
 
     if (uploadedFileName && file && file.name) uploadedFileName.textContent = file.name;
     if (uploadSection) uploadSection.style.display = "none";
@@ -199,7 +300,6 @@ async function uploadSelectedFile() {
   } catch (err) {
     uploadedFileId = null;
     console.error(err);
-    // Provide minimal inline feedback
     resultCard.style.display = "block";
     resultHeader.textContent = "Upload Error";
     summarySection.style.display = "block";

@@ -21,6 +21,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 s3_client = boto3.client("s3")
 BUCKET_NAME = "file-storage-for-cloud"
 client = boto3.client("bedrock-runtime", region_name="us-east-1")
@@ -158,3 +159,53 @@ def stream_deepseek():
 
     # Return a streaming response, with text/plain content type
     return StreamingResponse(event_stream(), media_type="text/plain")
+
+@app.post("/doi")
+def get_doi():
+    if not RESULT:
+        return {"error": "No document uploaded yet."}
+
+    doc_text = RESULT[-1]["text"]["full_text"]
+
+    prompt = f"""
+    Extract all valid DOI numbers from the following research paper text. 
+    - Ensure DOIs are in correct format (e.g., 10.xxxx/xxxx).
+    - If available, also generate properly formatted citations (APA style preferred).
+    - If no DOI is found, return "No DOI detected".
+    - Only return doi link, followed by the APA formatted citations in proper text format.
+
+    Research Paper Text:
+    {doc_text}
+    """
+
+    conversation = [
+        {
+            "role": "user",
+            "content": [{"text": prompt}]
+        }
+    ]
+
+    try:
+        response = client.converse(
+            modelId=model_id,
+            messages=conversation,
+            inferenceConfig={
+                "maxTokens": 1024,
+                "temperature": 0.0,
+                "topP": 0.9
+            },
+            additionalModelRequestFields={},
+            performanceConfig={"latency": "standard"}
+        )
+
+        citations = ""
+        for content_block in response["output"]["message"]["content"]:
+            if "text" in content_block:
+                citations += content_block["text"]
+
+        return citations.strip()
+
+    except ClientError as e:
+        return {"error": f"AWS Client Error: {e.response['Error']['Message']}"}
+    except Exception as e:
+        return {"error": f"Unexpected error: {str(e)}"}
