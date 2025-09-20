@@ -1,19 +1,25 @@
-name: Deploy frontend to GitHub Pages
+name: Deploy Frontend to GitHub Pages
 
 on:
   push:
     branches:
-      - master
+      - master   # change to 'master' if your default branch is master
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # required to push via GITHUB_TOKEN or PAT
+
     steps:
+      # 1️⃣ Checkout your repository
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # 2️⃣ Deploy 'frontend' folder to 'gh-pages' branch using PAT
       - name: Deploy frontend folder
         uses: peaceiris/actions-gh-pages@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.GH_PAT }}
           publish_dir: ./frontend
+          publish_branch: gh-pages
