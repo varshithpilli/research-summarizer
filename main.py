@@ -10,6 +10,10 @@ import camelot
 from PIL import Image
 import io
 import pytesseract
+from fastapi import HTTPException
+import requests
+import re
+
 
 RESULT = []
 
@@ -160,52 +164,71 @@ def stream_deepseek():
     # Return a streaming response, with text/plain content type
     return StreamingResponse(event_stream(), media_type="text/plain")
 
-@app.post("/doi")
-def get_doi():
-    if not RESULT:
-        return {"error": "No document uploaded yet."}
+@app.get("/doi")
+def get_citation():
+    text = RESULT[-1]
+    match = re.search(r"\b10\.\d{4,9}/[-._;()/:A-Z0-9]+\b", text, re.I)
+    print(f"The match is : {match}")
+    if not match:
+        raise HTTPException(status_code=404, detail="DOI not found in paper")
 
-    doc_text = RESULT[-1]["text"]["full_text"]
+    doi = match.group(0)
 
-    prompt = f"""
-    Extract all valid DOI numbers from the following research paper text. 
-    - Ensure DOIs are in correct format (e.g., 10.xxxx/xxxx).
-    - If available, also generate properly formatted citations (APA style preferred).
-    - If no DOI is found, return "No DOI detected".
-    - Only return doi link, followed by the APA formatted citations in proper text format.
+    # Step 3: Resolve DOI to citation link
+    doi_url = f"https://doi.org/{doi}"
+    response = requests.head(doi_url, allow_redirects=True)
 
-    Research Paper Text:
-    {doc_text}
-    """
+    if response.status_code == 200:
+        # return only the raw link (no JSON)
+        return response.url
+    else:
+        raise HTTPException(status_code=404, detail="Citation link not found")
 
-    conversation = [
-        {
-            "role": "user",
-            "content": [{"text": prompt}]
-        }
-    ]
+    
+# @app.post("/doi")
+# def get_doi():
+#     if not RESULT:
+#         return {"error": "No document uploaded yet."}
 
-    try:
-        response = client.converse(
-            modelId=model_id,
-            messages=conversation,
-            inferenceConfig={
-                "maxTokens": 1024,
-                "temperature": 0.0,
-                "topP": 0.9
-            },
-            additionalModelRequestFields={},
-            performanceConfig={"latency": "standard"}
-        )
+#     doc_text = RESULT[-1]["text"]["full_text"]
 
-        citations = ""
-        for content_block in response["output"]["message"]["content"]:
-            if "text" in content_block:
-                citations += content_block["text"]
+#     prompt = f"""
+#     Extract all valid DOI numbers from the following research paper text. 
+#     - Ensure DOIs are in correct format (e.g., 10.xxxx/xxxx).
+#     - If no DOI is found, return "No DOI detected".
 
-        return citations.strip()
+#     Research Paper Text:
+#     {doc_text}
+#     """
 
-    except ClientError as e:
-        return {"error": f"AWS Client Error: {e.response['Error']['Message']}"}
-    except Exception as e:
-        return {"error": f"Unexpected error: {str(e)}"}
+#     conversation = [
+#         {
+#             "role": "user",
+#             "content": [{"text": prompt}]
+#         }
+#     ]
+
+#     try:
+#         response = client.converse(
+#             modelId=model_id,
+#             messages=conversation,
+#             inferenceConfig={
+#                 "maxTokens": 1024,
+#                 "temperature": 0.0,
+#                 "topP": 0.9
+#             },
+#             additionalModelRequestFields={},
+#             performanceConfig={"latency": "standard"}
+#         )
+
+#         citations = ""
+#         for content_block in response["output"]["message"]["content"]:
+#             if "text" in content_block:
+#                 citations += content_block["text"]
+
+#         return citations.strip()
+
+#     except ClientError as e:
+#         return {"error": f"AWS Client Error: {e.response['Error']['Message']}"}
+#     except Exception as e:
+#         return {"error": f"Unexpected error: {str(e)}"}
